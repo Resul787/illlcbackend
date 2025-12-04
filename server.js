@@ -16,13 +16,31 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// ✅ CORS aktiv edildi.
-// Render.com və Netlify (ILHOLDING.AZ) üçün universal icazə verilir.
-// Əgər spesifik domenə icazə vermək istəsəniz:
-// const allowedOrigins = ['https://ilholding.az', 'https://www.ilholding.az', 'http://localhost:3000'];
-// app.use(cors({ origin: allowedOrigins }));
-// Lakin hələlik ən sadə və universal metodu saxlayırıq:
-app.use(cors());
+// ❌ KÖHNƏ: app.use(cors());
+// ✅ YENİ: CORS-u yalnız sizin domeniniz və Render.com mühiti üçün dəqiq tənzimləyirik!
+const allowedOrigins = [
+    'https://ilholding.az',
+    'https://www.ilholding.az',
+    // Bu, həm də Render.com-un öz domenindən gələn sorğulara icazə verir
+    'https://illlcbackend.onrender.com' 
+];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Brauzer sorğusu yoxdursa (məsələn, server-dən serverə), icazə ver
+        if (!origin) return callback(null, true); 
+        
+        // Domen siyahıda varsa və ya lokaldirsə, icazə ver
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            // Başqa domenlərə icazə vermə
+            callback(new Error('CORS: Not allowed by domain policy'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true // Cookies və Authorization header-ləri keçirməyə icazə
+}));
 
 // ✅ Routelər
 app.use("/api/auth", authRoutes);
@@ -44,8 +62,6 @@ mongoose
   .then(() => {
     console.log("✅ MongoDB connected");
 
-    // ✅ DÜZƏLİŞ: Lokalhost URL-i əvəzinə PORT dəyişəni ilə işə salırıq.
-    // Render.com avtomatik olaraq onun ünvanını təyin edəcək.
     app.listen(PORT, () => console.log(`🚀 Server running successfully on port ${PORT}`));
   })
   .catch((err) => console.error("Mongo Error:", err));
